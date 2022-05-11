@@ -1,1 +1,2 @@
-yfinance==0.1.70 
+yfinance==0.1.70
+gql
