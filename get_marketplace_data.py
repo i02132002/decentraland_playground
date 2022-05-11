@@ -9,6 +9,80 @@ from sys import argv
 
 from gql.transport.requests import RequestsHTTPTransport
 
+def get_on_sale_parcels(query_str_filename = 'get_on_sale_parcels.txt'):
+    df = get_parcels(query_str_filename)
+    df['x'] = df.parcel.apply(lambda a: int(a['x']))
+    df['y'] = df.parcel.apply(lambda a: int(a['y']))
+    df['parcel_id'] = df.parcel.apply(lambda a: a['id'])
+    return df
+
+def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):
+    df = get_parcels(query_str_filename)
+    df['estate_id'] = df.estate.apply(lambda a: a['id'])
+    df = df.join(df['estate'].apply(pd.Series).parcels)
+    df = df[df['parcels'].apply(lambda x: x!=[])]
+    each_parcel = df.groupby('estate_id').apply(expand_parcels).set_index('estate_id')
+    df = df.set_index('estate_id').join(each_parcel).reset_index(drop=True)
+    return df
+
+def expand_parcels(group):
+    row = group.iloc[0]
+    return pd.DataFrame({'estate_id': row['estate_id'], 
+            'parcel_id': [item['id'] for item in row['parcels']],
+            'x': [int(item['x']) for item in row['parcels']],
+            'y': [int(item['y']) for item in row['parcels']],
+            'estate_size': len(row['parcels'])
+            })
+
+
+def get_parcels(query_str_filename):
+    # Select your transport with a defined url endpoint
+    transport = RequestsHTTPTransport(url="https://api.thegraph.com/subgraphs/name/decentraland/marketplace")
+    # Create a GraphQL client using the defined transport
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+    
+    #query_str_filename = 'get_on_sale_parcels.txt'
+    with open(query_str_filename) as f:
+        query_str = f.read()
+    df = pd.DataFrame()
+
+    #update parameter used in mystring to start querying the database at the earliest update date of sale. The update 
+    #date is specified in epoch date and needs to be converted to datetime for human consumption.
+    update = 1
+    now = datetime.now().strftime('%s') + '000'
+
+    while True:
+        
+        #query the data using GraphQL python library.
+        query = gql(query_str.format(update, now))
+        result = client.execute(query)
+        
+        #if there is no data returned it means you reached the end and should stop querying.
+        if len(client.execute(query)['orders']) <= 1:
+            break
+    
+        else:
+            #Create a temporary dataframe to later append to the final dataframe that compiles all 1000-row dataframes.
+            df1 = pd.DataFrame()
+            df1 = pd.DataFrame(result['orders'])
+            #unfold a subdict into a series of columns.
+            df1 = df1.join(df1['nft'].apply(pd.Series),lsuffix='_1',rsuffix='_2')     
+            
+            #append your temp dataframe to your master dataset.
+            df = df.append(df1)
+            
+            #Pass into the API the max date from your dataset to fetch the next 1000 records.
+            update = df['updatedAt'].max()
+            print("last updated at: {}".format(time.strftime('%Y-%m-%d', time.localtime(int(update)))))
+
+    #reformat the update date in human-readable datetime format.
+    df['price'] = df['price'].astype(float)/1e18
+    df['expiresAt'] = df['expiresAt'].astype(float)/1e3
+    df['updatedAt_dt'] = df['updatedAt'].apply(lambda x: time.strftime('%Y-%m-%d', time.localtime(int(x))) )
+    return df
+
+    
+
 def get_parcels_from_estate(title, owner, limit=None):
     # Select your transport with a defined url endpoint
     transport = RequestsHTTPTransport(url="https://api.thegraph.com/subgraphs/name/decentraland/marketplace")

@@ -1,0 +1,23 @@
+{{
+  orders(
+    first: 1000
+    orderBy: updatedAt
+    orderDirection: asc
+    subgraphError: allow
+    where: {{status: open, updatedAt_gt:"{0}", expiresAt_gt: "{1}", category: parcel}}
+  ) {{
+    id
+    price
+    updatedAt
+    createdAt
+    expiresAt
+    owner
+    nft {{
+      parcel {{
+        id
+        x
+        y
+      }}
+    }}
+  }}
+}}
