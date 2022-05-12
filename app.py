@@ -11,7 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-
+@st.cache(allow_output_mutation=True)
 def load_on_sale_parcels():
     return gmd.get_on_sale_parcels()
 
@@ -22,12 +22,8 @@ def load_mana_price():
 
 st.title('Decentralmate: A virtual real estate price estimator')
 
-# Create a text element and let the reader know the data is loading.
-data_load_state = st.text('Loading data...')
 # Load data into the dataframe.
 on_sale_parcels = load_on_sale_parcels()
-# Notify the reader that the data was successfully loaded.
-data_load_state.text("Done! (using st.cache)")
 
 st.subheader('Parcels currently for sale')
 
@@ -62,8 +58,12 @@ def nround(n, m=0):
     except (ValueError, TypeError):
         return None
     
-hovertext = list(all_p.apply(lambda x: 'x: {}, y: {}<br /> price ($): {}<br />predicted price ($): {}<br />ratio: {}'
-                             .format(x.x, x.y, nround(x.price_usd), nround(x.price_pred_usd), nround(x.p_ratio,2)), axis='columns'))
+hovertext = ('x: ' + all_p.x.astype(str) + 
+            ', y: ' + all_p.y.astype(str) + 
+            '<br />price ($): ' + nround(all_p.price_usd).astype(str) +
+            '<br />predicted price ($): ' + nround(all_p.price_pred_usd).astype(str) +
+            '<br />ratio: ' + nround(all_p.p_ratio,2).astype(str)
+)
 
 layout = go.Layout(
     paper_bgcolor='rgba(0,0,0,0)',
@@ -87,6 +87,12 @@ fig.add_trace(go.Heatmap(
     x=all_p.x,
     y=all_p.y,
     z=all_p.p_ratio,
+    colorbar=dict(
+                    title='Price ratio to mean sale price',
+                    #xanchor="right",
+                    #yanchor="middle",
+                    #textangle=-90,
+                    ),
     hoverinfo='text',
     text=hovertext,
     hoverongaps = False,
@@ -109,8 +115,8 @@ fig.update_xaxes(
     visible =False
 )
 fig.update_layout(
-    width=600,
-    height=600,
+    width=800,
+    height=800,
     margin=dict(
         l=10,
         r=10,
@@ -121,12 +127,45 @@ fig.update_layout(
 )
 
 
-
 st.plotly_chart(fig)
-st.text_input("Minimum price:", placeholder = '0')
-st.text_input("Maximum price:", placeholder = '10,000')
-st.button("filter by price", on_click = None)
+with st.form(key='my_form'):
+    filter_by_price = st.checkbox('Filter by price', value = True)
+    
+    left, right = st.columns(2)
+    with left: 
+        q_min = st.number_input("Minimum price ($):", min_value=0, max_value=None, value=0)
+    with right:
+        q_max = st.number_input("Maximum price ($):", min_value=0, max_value=None, value=10000)
+    
+    filter_by_area = st.checkbox('Filter by area', value = True)
 
-st.subheader('10 most undervalued parcels')
-st.write(all_p.sort_values(by='p_ratio')[:10][['x','y','price_usd','price_pred_usd','p_ratio']])
+    st.text('Please enter the center coordinate of area you\'d like to query')
+    left, mid, right = st.columns(3)
+    with left: 
+        q_x = st.number_input("x:", value = 0, min_value=-150, max_value=150)
+    with mid:
+        q_y = st.number_input("y:", value = 0, min_value=-150, max_value=150)
+    with right:
+        q_r = st.number_input("Query radius:", min_value=1, max_value=None, value = 80)
+    
+    submitted  = st.form_submit_button(label='Filter by price and area')
+    
+    if submitted:
+        st.subheader('10 most undervalued parcels')
+        cond_nan = ~all_p.price_usd.isna()
+        cond_q_min = all_p.price_usd > q_min
+        cond_q_max = all_p.price_usd < q_max
+        cond_q_r = ((all_p.x - q_x)**2 + (all_p.y - q_y)**2)**0.5 <= q_r
+        result = all_p
+        if filter_by_area:
+            result = all_p[cond_nan & cond_q_r]
+        if filter_by_price:
+            result = result[cond_nan & cond_q_min & cond_q_max]
+        st.write(result.sort_values(by='p_ratio')[:10][['x','y','price_usd','price_pred_usd','p_ratio']])
+
+
+#if st.button("filter by price and area"):
+    
+
+
 
