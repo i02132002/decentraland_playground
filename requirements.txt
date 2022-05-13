@@ -1,4 +1,5 @@
 yfinance==0.1.70
 plotly==5.7.0
+PIL==9.1.0
 gql
 requests_toolbelt

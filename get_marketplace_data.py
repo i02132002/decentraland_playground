@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timedelta
 import requests
 import json
 from gql import gql, Client
@@ -6,6 +7,7 @@ import pandas as pd
 import time
 import numpy as np
 from sys import argv
+
 
 from gql.transport.requests import RequestsHTTPTransport
 
@@ -25,6 +27,11 @@ def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):
     df = df.set_index('estate_id').join(each_parcel).reset_index(drop=True)
     return df
 
+def get_historic_parcels(query_str_filename = 'get_historic_parcels.txt', days=10):
+    return get_parcels(query_str_filename, historic=True, days=days)
+
+
+
 def expand_parcels(group):
     row = group.iloc[0]
     return pd.DataFrame({'estate_id': row['estate_id'], 
@@ -35,7 +42,7 @@ def expand_parcels(group):
             })
 
 
-def get_parcels(query_str_filename):
+def get_parcels(query_str_filename, now=datetime.now().strftime('%s') + '000', historic = False, days=10):
     # Select your transport with a defined url endpoint
     transport = RequestsHTTPTransport(url="https://api.thegraph.com/subgraphs/name/decentraland/marketplace")
     # Create a GraphQL client using the defined transport
@@ -49,12 +56,16 @@ def get_parcels(query_str_filename):
     #update parameter used in mystring to start querying the database at the earliest update date of sale. The update 
     #date is specified in epoch date and needs to be converted to datetime for human consumption.
     update = 1
-    now = datetime.now().strftime('%s') + '000'
+    if historic:
+        now = (datetime.now()  - timedelta(days=days)).strftime('%s')
+        update = now
 
     while True:
         
         #query the data using GraphQL python library.
         query = gql(query_str.format(update, now))
+        if historic:
+            query = gql(query_str.format(update))
         result = client.execute(query)
         
         #if there is no data returned it means you reached the end and should stop querying.
@@ -77,7 +88,8 @@ def get_parcels(query_str_filename):
 
     #reformat the update date in human-readable datetime format.
     df['price'] = df['price'].astype(float)/1e18
-    df['expiresAt'] = df['expiresAt'].astype(float)/1e3
+    if not historic:
+        df['expiresAt'] = df['expiresAt'].astype(float)/1e3
     df['updatedAt_dt'] = df['updatedAt'].apply(lambda x: time.strftime('%Y-%m-%d', time.localtime(int(x))) )
     return df
 
