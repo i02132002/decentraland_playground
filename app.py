@@ -9,7 +9,6 @@ from gql.transport.requests import RequestsHTTPTransport
 import get_marketplace_data as gmd
 import plotly.express as px
 import plotly.graph_objects as go
-from PIL import Image
 
 @st.cache(allow_output_mutation=True)
 def load_on_sale_parcels():
@@ -40,10 +39,6 @@ PERCENT_CHANGE =  (CURRENT_MANA_PRICE - PREVIOUS_MANA_PRICE) / PREVIOUS_MANA_PRI
 ABS_PERCENT_CHANGE = abs(PERCENT_CHANGE)
 SIGN = '+' if PERCENT_CHANGE >=0 else '-' 
 
-#up_arrow = Image.open('./resources/up_arrow.png')
-#down_arrow = Image.open('./resources/down_arrow.png')
-
-
 
 left, right = st.columns(2)
 with left:
@@ -72,7 +67,7 @@ all_p['price_usd'] = all_p.price * CURRENT_MANA_PRICE
 all_p['norm_price'] = all_p.price * CURRENT_MANA_PRICE / TEN_DAY_AVG 
 all_p = all_p.merge(parcel_model, on=['x','y'], how='left').rename(columns={'y_pred':'norm_price_pred'})
 all_p['price_pred_usd'] = all_p.norm_price_pred * TEN_DAY_AVG
-all_p['p_ratio'] = all_p.norm_price / all_p.norm_price_pred
+all_p['p_ratio'] = all_p.price_usd / all_p.price_pred_usd
 
 def nround(n, m=0):
     try:
@@ -88,7 +83,7 @@ st.subheader('Parcels currently for sale')
 
 hovertext = ('x: ' + all_p.x.astype(str) + 
             ', y: ' + all_p.y.astype(str) + 
-            '<br />price ($): ' + nround(all_p.price_usd).astype(str) +
+            '<br />asking price ($): ' + nround(all_p.price_usd).astype(str) +
             '<br />predicted price ($): ' + nround(all_p.price_pred_usd).astype(str) +
             '<br />ratio: ' + nround(all_p.p_ratio,2).astype(str)
 )
@@ -189,6 +184,7 @@ with st.form(key='my_form'):
             result = all_p[cond_nan & cond_q_r]
         if filter_by_price:
             result = result[cond_nan & cond_q_min & cond_q_max]
+        result = result[result.p_ratio < 1.0]
         st.write(result.sort_values(by='p_ratio')[:10][['x','y','norm_price','price_usd','price_pred_usd','p_ratio']])
 
 
