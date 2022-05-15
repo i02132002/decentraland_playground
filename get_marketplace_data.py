@@ -27,7 +27,7 @@ def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):
     df = df.set_index('estate_id').join(each_parcel).reset_index(drop=True)
     return df
 
-def get_historic_parcels(query_str_filename = 'get_historic_parcels.txt', days=10):
+def get_historic_parcels(query_str_filename = 'get_historic_parcels.txt', days=5):
     return get_parcels(query_str_filename, historic=True, days=days)
 
 
@@ -42,7 +42,7 @@ def expand_parcels(group):
             })
 
 
-def get_parcels(query_str_filename, now=datetime.now().strftime('%s') + '000', historic = False, days=10):
+def get_parcels(query_str_filename, now=datetime.now().strftime('%s') + '000', historic = False, days=5):
     # Select your transport with a defined url endpoint
     transport = RequestsHTTPTransport(url="https://api.thegraph.com/subgraphs/name/decentraland/marketplace")
     # Create a GraphQL client using the defined transport

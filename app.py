@@ -20,8 +20,8 @@ def load_mana_price():
     return mana_price
 
 @st.cache(allow_output_mutation=True)
-def get_10_day_avg():
-    return gmd.get_historic_parcels().price.mean()
+def get_n_day_avg(n=5):
+    return gmd.get_historic_parcels(days=n).price.mean()
 
 st.title('Decentraland Parcel Price Estimator')
 
@@ -60,7 +60,7 @@ xx, yy = range(-150,151), range(-150,151)
 XX,YY = np.meshgrid([x for x in xx], [y for y in yy])
 all_p = pd.DataFrame({'x': XX.flatten(), 'y': YY.flatten()})
 
-TEN_DAY_AVG = get_10_day_avg() # in USD
+TEN_DAY_AVG = get_n_day_avg(n=5) # in USD
 #st.text(f'ten day average: {TEN_DAY_AVG}')
 all_p = all_p.merge(on_sale_parcels[['x','y','price']], on=['x','y'], how='left')
 all_p['price_usd'] = all_p.price * CURRENT_MANA_PRICE
