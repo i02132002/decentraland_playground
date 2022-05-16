@@ -16,6 +16,7 @@ def get_on_sale_parcels(query_str_filename = 'get_on_sale_parcels.txt'):
     df['x'] = df.parcel.apply(lambda a: int(a['x']))
     df['y'] = df.parcel.apply(lambda a: int(a['y']))
     df['parcel_id'] = df.parcel.apply(lambda a: a['id'])
+    df['token_id'] = df.parcel.apply(lambda a: a['tokenId'])
     return df
 
 def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):

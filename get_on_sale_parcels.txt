@@ -15,6 +15,7 @@
     nft {{
       parcel {{
         id
+        tokenId
         x
         y
       }}

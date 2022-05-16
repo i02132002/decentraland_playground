@@ -23,6 +23,9 @@ def load_mana_price():
 def get_n_day_avg(n=5):
     return gmd.get_historic_parcels(days=n).price.mean()
 
+def make_clickable(url, val):
+    return f'<a href="{url}" target="_blank" rel="noopener noreferrer">{val}</a>'
+
 st.title('Decentraland Parcel Price Estimator')
 
 # Load data into the dataframe.
@@ -50,8 +53,6 @@ with right:
         ticker = f'<p style="font-family:Courier; color:Red; font-size: 16px;">1 MANA = ${round(CURRENT_MANA_PRICE, 3)} ({SIGN}{round(ABS_PERCENT_CHANGE,2)}%)</p>'
     st.markdown(ticker, unsafe_allow_html=True)
 
-        
-#st.line_chart(mana_price.Close)
 
 parcel_model = pd.read_csv('parcel_model.csv')
 roads = pd.read_csv('roads.csv')
@@ -60,14 +61,14 @@ xx, yy = range(-150,151), range(-150,151)
 XX,YY = np.meshgrid([x for x in xx], [y for y in yy])
 all_p = pd.DataFrame({'x': XX.flatten(), 'y': YY.flatten()})
 
-TEN_DAY_AVG = get_n_day_avg(n=5) # in USD
-#st.text(f'ten day average: {TEN_DAY_AVG}')
-all_p = all_p.merge(on_sale_parcels[['x','y','price']], on=['x','y'], how='left')
+N_DAY_AVG = get_n_day_avg(n=5) # in MANA
+#st.text(f'n day average: {N_DAY_AVG}')
+all_p = all_p.merge(on_sale_parcels[['x','y','price','parcel_id','token_id']], on=['x','y'], how='left')
 all_p['price_usd'] = all_p.price * CURRENT_MANA_PRICE
-all_p['norm_price'] = all_p.price * CURRENT_MANA_PRICE / TEN_DAY_AVG 
+all_p['norm_price'] = all_p.price  / N_DAY_AVG 
 all_p = all_p.merge(parcel_model, on=['x','y'], how='left').rename(columns={'y_pred':'norm_price_pred'})
-all_p['price_pred_usd'] = all_p.norm_price_pred * TEN_DAY_AVG
-all_p['p_ratio'] = all_p.price_usd / all_p.price_pred_usd
+all_p['price_pred_usd'] = all_p.norm_price_pred * N_DAY_AVG *CURRENT_MANA_PRICE
+all_p['p_ratio'] = all_p.price_usd / all_p.price_pred_usd # This is exactly equal to  price / (norm_price_pred * N_DAY_AVG)
 
 def nround(n, m=0):
     try:
@@ -79,6 +80,7 @@ def nround(n, m=0):
         return None
 
 st.subheader('Parcels currently for sale')
+st.text("""This map shows all parcels currently on sale in Decentraland.\nHover over parcels to explore prices and estimated prices.\nClick and drag to zoom in, double click to zoom out.""")
 
 
 hovertext = ('x: ' + all_p.x.astype(str) + 
@@ -119,6 +121,9 @@ fig.add_trace(go.Heatmap(
     hoverinfo='text',
     text=hovertext,
     hoverongaps = False,
+    hoverlabel=dict(
+        font_size=20,
+    ),
     colorscale = 'RdYlBu',
     reversescale = True,
     zmin = 0,
@@ -179,17 +184,22 @@ with st.form(key='my_form'):
         cond_q_min = all_p.price_usd > q_min
         cond_q_max = all_p.price_usd < q_max
         cond_q_r = ((all_p.x - q_x)**2 + (all_p.y - q_y)**2)**0.5 <= q_r
-        result = all_p
+        result = all_p.copy()
         if filter_by_area:
             result = all_p[cond_nan & cond_q_r]
         if filter_by_price:
             result = result[cond_nan & cond_q_min & cond_q_max]
         result = result[result.p_ratio < 1.0]
-        st.write(result.sort_values(by='p_ratio')[:10][['x','y','norm_price','price_usd','price_pred_usd','p_ratio']])
 
+        result['buy_link'] = 'Buy'
+        result['url'] = ('https://market.decentraland.org/contracts/' + 
+                        result.parcel_id.apply(lambda x: x.split('-')[1]) +
+                        '/tokens/' +
+                        result.token_id)
+        result['buy_link'] = result.apply(lambda x: make_clickable(x['url'], x['buy_link']), axis=1)
 
-#if st.button("filter by price and area"):
-    
-
-
-
+        result = result.rename(columns={'price_usd': 'Price ($)', 
+                        'price_pred_usd': 'Predicted Price ($)',
+                        'p_ratio' : 'Price/Predicted Price Ratio',
+                        'norm_price': 'Price/Avg.Price Ratio'})
+        st.write(result.sort_values(by='Price/Predicted Price Ratio')[['x','y','Price ($)','Predicted Price ($)','Price/Predicted Price Ratio', 'Price/Avg.Price Ratio', 'url']], unsafe_allow_html=True)
