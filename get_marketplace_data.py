@@ -161,17 +161,3 @@ def get_parcels_from_estate(title, owner, limit=None):
         i += 1
 
     df.to_csv(f'{title}.csv',index=False)
-    
-if __name__ == '__main__':
-    try:
-        title = argv[1]
-        owner = argv[2]
-        if len(argv) == 4:  
-            limit = int(argv[2])
-            get_parcels_from_estate(title, owner, limit = limit)
-        else:
-            get_parcels_from_estate(title, owner)
-            
-    except ValueError:
-        print("Stupid user, please enter a number")
-        exit(1)
