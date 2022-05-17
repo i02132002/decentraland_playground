@@ -7,8 +7,6 @@ import pandas as pd
 import time
 import numpy as np
 from sys import argv
-
-
 from gql.transport.requests import RequestsHTTPTransport
 
 def get_on_sale_parcels(query_str_filename = 'get_on_sale_parcels.txt'):
@@ -17,6 +15,7 @@ def get_on_sale_parcels(query_str_filename = 'get_on_sale_parcels.txt'):
     df['y'] = df.parcel.apply(lambda a: int(a['y']))
     df['parcel_id'] = df.parcel.apply(lambda a: a['id'])
     df['token_id'] = df.parcel.apply(lambda a: a['tokenId'])
+    df['expiresAt'] = df['expiresAt'].astype(float)/1e3
     return df
 
 def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):
@@ -31,7 +30,14 @@ def get_on_sale_estates(query_str_filename = 'get_on_sale_estates.txt'):
 def get_historic_parcels(query_str_filename = 'get_historic_parcels.txt', days=5):
     return get_parcels(query_str_filename, historic=True, days=days)
 
-
+def get_all_parcel_transactions(query_str_filename = 'get_all_parcel_transactions.txt'):
+    df = get_parcels(query_str_filename)
+    df['owner'] = df.owner.apply(lambda x: x['id'])
+    df['x'] = df.parcel.apply(lambda a: a['x'])
+    df['y'] = df.parcel.apply(lambda a: a['y'])
+    df['parcel_id'] = df.parcel.apply(lambda a: a['id'])
+    df.to_csv('parcel_transactions.csv',index=False)
+    return df
 
 def expand_parcels(group):
     row = group.iloc[0]
@@ -89,8 +95,6 @@ def get_parcels(query_str_filename, now=datetime.now().strftime('%s') + '000', h
 
     #reformat the update date in human-readable datetime format.
     df['price'] = df['price'].astype(float)/1e18
-    if not historic:
-        df['expiresAt'] = df['expiresAt'].astype(float)/1e3
     df['updatedAt_dt'] = df['updatedAt'].apply(lambda x: time.strftime('%Y-%m-%d', time.localtime(int(x))) )
     return df
 
@@ -103,7 +107,7 @@ def get_parcels_from_estate(title, owner, limit=None):
     client = Client(transport=transport, fetch_schema_from_transport=True)
     
     mystring = """{{
-    estates(first: 1, orderBy: id, where: {{owner: "{0}", id_gt:"{1}"}}) {{
+    estates(first: 1, orderBy: id, where: {{owner: "{0}", id_gt:"{1}"}}, subgraphError: allow) {{
         id
         parcels(first: 1000, orderBy: id, where: {{id_gt:"{2}"}}) {{
           id
@@ -161,3 +165,4 @@ def get_parcels_from_estate(title, owner, limit=None):
         i += 1
 
     df.to_csv(f'{title}.csv',index=False)
+    #return df

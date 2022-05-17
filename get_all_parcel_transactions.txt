@@ -1,0 +1,31 @@
+{{
+orders (first: 1000 orderBy: updatedAt, orderDirection: asc where: {{ status:sold category:parcel updatedAt_gt:"{0}"}}, subgraphError: allow) {{
+ 
+ 
+    category
+    status
+    price
+    id
+    updatedAt
+    nft {{
+      owner {{
+        id
+      }}
+      name
+      estate {{
+        id
+      }}
+      parcel {{
+        id
+        x
+        y
+      }}
+     
+      owner {{
+        id
+      }}
+    }}
+   
+  }}
+ 
+}}
