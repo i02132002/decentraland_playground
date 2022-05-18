@@ -69,7 +69,8 @@ def plot_decentraland_map(all_p, roads):
                         title='Asking price / predicted price',
                         len=0.75,
                         titleside = 'right',
-                        tickfont = dict(size = 20)
+                        tickfont = dict(size = 20),
+                        tickformat='.0%'
                         ),
         hoverinfo='text',
         text=hovertext,

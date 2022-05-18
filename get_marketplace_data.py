@@ -87,7 +87,7 @@ def get_parcels(query_str_filename, now=datetime.now().strftime('%s') + '000', h
             df1 = df1.join(df1['nft'].apply(pd.Series),lsuffix='_1',rsuffix='_2')     
             
             #append your temp dataframe to your master dataset.
-            df = df.append(df1)
+            df = pd.concat([df,df1])
             
             #Pass into the API the max date from your dataset to fetch the next 1000 records.
             update = df['updatedAt'].max()
@@ -152,13 +152,13 @@ def get_parcels_from_estate(title, owner, limit=None):
                 y = [int(p['y']) for p in result['estates'][0]['parcels'] ]
 
                 dfnn = pd.DataFrame({'eid':eid,'pid':pid,'x':x,'y':y})
-                dfn = dfn.append(dfnn, ignore_index=True)
+                dfn = pd.concat([dfn, dfnn], ignore_index=True)
 
             #Pass into the API the max date from your dataset to fetch the next 1000 records.
             p_count += len(result['estates'][0]['parcels'])
             parcel_max = dfn['pid'].max()
 
-        df = df.append(dfn, ignore_index=True)
+        df = pd.concat([df, dfn], ignore_index=True)
         estate_max = df['eid'].max()
         e_count +=1
         print(f'estate {e_count} done, {p_count} parcels found')
